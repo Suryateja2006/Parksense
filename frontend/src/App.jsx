@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { ProtectedRoute } from "./components/ProtectedRoutes";
 import Navbar from './components/Navbar';
 import Home from './components/Home';
 import Login from './components/FacultyLogin';
@@ -9,6 +10,8 @@ import AdminLogin from './components/AdminLogin';
 import StudentLogin from './components/StudentLogin';
 import StudentRegister from './components/StudentRegsiter';
 import StudentDashboard from './components/Studentdashboard';
+
+
 function App() {
   return (
     <Router>
@@ -18,16 +21,26 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/Register" element={<Register />} />
-          <Route path="/customerdashboard" element={<Dashboard />} />
-          <Route path = "/admin-dashboard" element = {<AdminDashboard/>} />
-          <Route path = "/admin-login" element = {<AdminLogin/>}/>
-          <Route path = "/studentlogin" element = {<StudentLogin/>}/>
-          <Route path = "/student-register" element = {<StudentRegister/>}/>
-          <Route path = "/student-dashboard" element = {<StudentDashboard/>}/>
+          <Route path="/customerdashboard" element={
+            <ProtectedRoute allowedRole="faculty">
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin-dashboard" element={
+              <AdminDashboard />
+          } />
+
+          <Route path="/admin-login" element={<AdminLogin />} />
+          <Route path="/studentlogin" element={<StudentLogin />} />
+          <Route path="/student-register" element={<StudentRegister />} />
+          <Route path="/student-dashboard" element={
+            <ProtectedRoute allowedRole="student">
+              <StudentDashboard />
+            </ProtectedRoute>
+          } />
         </Routes>
       </div>
     </Router>
   );
 }
-
 export default App;

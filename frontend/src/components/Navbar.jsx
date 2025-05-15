@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Car } from "lucide-react";
 
 const Navbar = () => {
@@ -8,42 +8,52 @@ const Navbar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    // Whenever page loads or path changes, check login status
     const adminStatus = localStorage.getItem("isAdminLoggedIn");
-    const userStatus = localStorage.getItem("isUserLoggedIn"); // If you have user login later
+    const userStatus = sessionStorage.getItem("isUserLoggedIn");
     if (adminStatus === "true" || userStatus === "true") {
       setIsLoggedIn(true);
     } else {
       setIsLoggedIn(false);
     }
-  }, [location]); // Update when route changes
+  }, [location]);
 
   const handleLogout = () => {
     localStorage.removeItem("isAdminLoggedIn");
-    localStorage.removeItem("isUserLoggedIn"); // If you add user login later
+    sessionStorage.removeItem("isUserLoggedIn");
+    sessionStorage.removeItem("role");
     setIsLoggedIn(false);
     navigate("/");
+  };
+
+  const handleLogoClick = () => {
+    if (isLoggedIn) {
+      handleLogout();
+    } else {
+      navigate("/");
+    }
   };
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-border/40 bg-black text-white">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link to="/" className="flex items-center gap-2">
+        <div onClick={handleLogoClick} className="flex items-center gap-2 cursor-pointer">
           <Car className="h-6 w-6 text-blue-500" />
           <span className="text-blue-500 font-bold">ParkSense</span>
-        </Link>
+        </div>
         {!isLoggedIn ? (
           <div className="flex items-center gap-4">
-            <Link to="/login">
-              <button className="bg-black border border-blue-500 text-blue-500 px-4 py-2 rounded-md hover:bg-gray-800 transition-all">
-                Login
-              </button>
-            </Link>
-            <Link to="/register">
-              <button className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-all">
-                Register
-              </button>
-            </Link>
+            <button
+              onClick={() => navigate("/login")}
+              className="bg-black border border-blue-500 text-blue-500 px-4 py-2 rounded-md hover:bg-gray-800 transition-all"
+            >
+              Login
+            </button>
+            <button
+              onClick={() => navigate("/register")}
+              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-all"
+            >
+              Register
+            </button>
           </div>
         ) : (
           <button

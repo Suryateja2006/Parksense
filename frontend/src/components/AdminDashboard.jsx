@@ -1,209 +1,529 @@
-// AdminDashboard.jsx
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-// import AdminNavbar from './AdminNavbar';
-import { Car } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Car, LogOut, X, Check, Info } from "lucide-react";
 
-function AdminDashboard() {
-  const [stats, setStats] = useState({
-    totalSlots: 0,
-    bookedSlots: 0,
-    unauthorizedParking: 0,
-  });
-  const [bookedSlots, setBookedSlots] = useState([]);
-  const [unauthorizedParking, setUnauthorizedParking] = useState([]);
-  const [activeTab, setActiveTab] = useState('Faculty');
-  const [selectedUser, setSelectedUser] = useState(null);
+export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState("faculty");
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedUnauthorized, setSelectedUnauthorized] = useState(null);
+  const [isUnauthorizedDetailsOpen, setIsUnauthorizedDetailsOpen] = useState(false);
+  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
+  const [selectedAction, setSelectedAction] = useState(null);
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  
+  const [facultyStats, setFacultyStats] = useState({ totalSlots: 24, bookedSlots: 0, availableSlots: 24 });
+  const [studentStats, setStudentStats] = useState({ totalSlots: 24, bookedSlots: 0, availableSlots: 24 });
+  const [occupiedSlots, setOccupiedSlots] = useState([]);
+  const [unauthorizedVehicles, setUnauthorizedVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const statsRes = await axios.get('http://localhost:5000/api/admin/stats');
-        const bookedSlotsRes = await axios.get('http://localhost:5000/api/admin/booked-slots');
-        const unauthorizedRes = await axios.get('http://localhost:5000/api/admin/unauthorized-parking');
 
-        setStats(statsRes.data);
-        setBookedSlots(bookedSlotsRes.data);
-        setUnauthorizedParking(unauthorizedRes.data);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
-
+const fetchData = async () => {
+  try {
+    setLoading(true);
+    
+    const [facultyRes, studentRes, occupiedRes] = await Promise.all([
+      fetch('http://localhost:5000/api/getBookedSlots?type=faculty'),
+      fetch('http://localhost:5000/api/getBookedSlots?type=student'),
+      fetch('http://localhost:5000/api/slots/occupied')
+    ]);
+    if (!facultyRes.ok || !studentRes.ok || !occupiedRes.ok) {
+      throw new Error('Failed to fetch data');
+    }
+    setFacultyStats(await facultyRes.json());
+    setStudentStats(await studentRes.json());
+    setOccupiedSlots(await occupiedRes.json());
+    
+    setUnauthorizedVehicles([]);
+    
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Failed to load data. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
     fetchData();
+    
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, []);
+const generateSlots = () => {
+  const startRow = activeTab === "faculty" ? 'A' : 'E';
+  return Array.from({ length: 24 }, (_, i) => {
+    const row = String.fromCharCode(startRow.charCodeAt(0) + Math.floor(i / 6));
+    const col = (i % 6) + 1;
+    const slotId = `${row}${col}`;
+    
+    const slotData = occupiedSlots.find(s => 
+      s.slotNumber === slotId && s.userType === activeTab
+    );
 
-  const facultySlots = bookedSlots.filter(slot => slot.userType === 'faculty');
-  const studentSlots = bookedSlots.filter(slot => slot.userType === 'student');
+    return {
+      id: slotId,
+      status: slotData ? "allocated" : "available",
+      carDetails: slotData ? {
+        carNumber: slotData.carNumber,
+        contactNumber: slotData.phoneNumber,
+        
+      } : null
+    };
+  });
+};
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    window.location.href = "/admin/login";
+  };
+
+const handleSlotClick = (slot) => {
+  console.log("Clicked slot ID:", slot.id);
+  const occupiedSlot = occupiedSlots.find(s => 
+    s.slotNumber === slot.id && 
+    s.userType === activeTab
+  );
+
+  console.log("Found occupied slot:", occupiedSlot); 
+    const formatToIST = (utcDateString) => {
+  const date = new Date(utcDateString);
+  return date.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
+  if (occupiedSlot) {
+    setSelectedSlot({
+      id: slot.id,
+      carDetails: {
+        carNumber: occupiedSlot.carNumber,
+        contactNumber: occupiedSlot.phoneNumber,
+        slot:slot.id,
+        imageUrl: "/placeholder.svg",
+        bookedAt:formatToIST(occupiedSlot.bookedAt),
+      }
+    });
+    setIsDetailsDialogOpen(true);
+  } else {
+    console.log("No matching occupied slot found");
+  }
+};
+
+  const handleUnauthorizedDetails = (vehicle) => {
+    setSelectedUnauthorized(vehicle);
+    setIsUnauthorizedDetailsOpen(true);
+  };
+
+  const handleTakeAction = (vehicle) => {
+    setSelectedUnauthorized(vehicle);
+    setIsActionDialogOpen(true);
+  };
+
+  const handleActionSelect = (type) => {
+    setSelectedAction(type);
+    setIsActionDialogOpen(false);
+    setIsConfirmationOpen(true);
+  };
+
+  const handleConfirmAction = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/unauthorized/${selectedUnauthorized.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ action: selectedAction })
+      });
+
+      if (response.ok) {
+        alert(`Vehicle ${selectedUnauthorized.carNumber} has been moved to ${selectedAction} parking.`);
+        // Refresh data
+        const updatedUnauthorized = await fetch('http://localhost:5000/api/unauthorized');
+        setUnauthorizedVehicles(await updatedUnauthorized.json());
+      } else {
+        throw new Error('Failed to update vehicle status');
+      }
+    } catch (error) {
+      console.error("Error taking action:", error);
+      alert("Failed to take action. Please try again.");
+    } finally {
+      setIsConfirmationOpen(false);
+    }
+  };
+
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  const currentSlots = generateSlots();
 
   return (
-    <div className="bg-black text-white min-h-screen p-4 pt-16">
-      {/* <AdminNavbar /> */}
-      <div className="pt-20 sm:p-8">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-base sm:text-xl mb-6">Manage parking slots and monitor activity</p>
+    <div className="min-h-screen bg-black flex flex-col items-center">
+      <header className="border-b border-zinc-800 bg-zinc-950">
+        <div className="container flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <Car className="h-6 w-6 text-blue-500" />
+            <span className="text-xl font-bold text-white">ParkSense Admin</span>
+          </div>
+          <button 
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-zinc-800 hover:text-zinc-100 h-10 px-4 py-2 text-white"
+            onClick={handleLogout}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </button>
+        </div>
+      </header>
 
-        {/* Stat Boxes */}
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-          {[{
-            title: 'Total Slots',
-            value: stats.totalSlots,
-            description: 'Parking slots available',
-            color: 'text-white'
-          }, {
-            title: 'Booked Slots',
-            value: stats.bookedSlots,
-            description: 'Currently occupied',
-            color: 'text-blue-500'
-          }, {
-            title: 'Unauthorized Parking',
-            value: stats.unauthorizedParking,
-            description: 'Requires attention',
-            color: 'text-red-500'
-          }].map((item, idx) => (
-            <div key={idx} className="bg-zinc-950 p-6 sm:p-10 rounded-lg transform transition-all hover:scale-105 border border-white/20 shadow-lg">
-              <h2 className="text-xl sm:text-2xl">{item.title}</h2>
-              <p className={`text-2xl sm:text-3xl font-bold ${item.color}`}>{item.value}</p>
-              <p className="text-gray-400 mt-4">{item.description}</p>
-            </div>
-          ))}
+      <main className="container py-8 px-4">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2 text-white">Admin Dashboard</h1>
+          <p className="text-gray-400">Manage parking slots and monitor activity</p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 mb-6 p-1">
-          {['Faculty', 'Student', 'Unauthorized'].map(tab => (
+        <div className="grid gap-6 md:grid-cols-3 mb-8">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg">
+            <div className="p-6 pb-2">
+              <h2 className="text-lg font-semibold text-white">Faculty Parking</h2>
+            </div>
+            <div className="p-6 pt-0">
+              <div className="text-3xl font-bold text-blue-500">
+                {facultyStats.bookedSlots} / {facultyStats.totalSlots}
+              </div>
+              <p className="text-sm text-gray-400">Slots currently occupied</p>
+            </div>
+          </div>
+          
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg">
+            <div className="p-6 pb-2">
+              <h2 className="text-lg font-semibold text-white">Student Parking</h2>
+            </div>
+            <div className="p-6 pt-0">
+              <div className="text-3xl font-bold text-blue-500">
+                {studentStats.bookedSlots} / {studentStats.totalSlots}
+              </div>
+              <p className="text-sm text-gray-400">Slots currently occupied</p>
+            </div>
+          </div>
+          
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg">
+            <div className="p-6 pb-2">
+              <h2 className="text-lg font-semibold text-white">Unauthorized Parking</h2>
+            </div>
+            <div className="p-6 pt-0">
+              <div className="text-3xl font-bold text-red-500">
+                {unauthorizedVehicles.length}
+              </div>
+              <p className="text-sm text-gray-400">Requires attention</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full">
+          <div className="grid w-full grid-cols-3 bg-zinc-900 rounded-md p-1 gap-1 mb-6">
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-3 px-4 text-base sm:text-lg font-semibold rounded-lg transition-transform transform hover:scale-90 ${
-                activeTab === tab ? 'bg-zinc-950' : 'bg-zinc-800'
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
+                activeTab === "faculty" ? "bg-zinc-950 text-white" : "text-gray-400 hover:text-white"
               }`}
+              onClick={() => setActiveTab("faculty")}
             >
-              {tab}
+              Faculty
             </button>
-          ))}
-        </div>
-
-        {/* Table Content */}
-        <div className="p-4 sm:p-6">
-          {activeTab === 'Faculty' && (
-            <div>
-              <h2 className="text-xl sm:text-2xl mb-4">Faculty Parking Slots</h2>
-              <div className="bg-zinc-800 p-4 rounded-lg shadow-lg overflow-x-auto">
-                <table className="min-w-full table-auto text-left">
-                  <thead>
-                    <tr className="border-b text-sm sm:text-lg">
-                      {['Slot ID', 'Name', 'Car Number', 'Phone Number', 'Actions'].map(header => (
-                        <th key={header} className="px-4 py-3 text-gray-400 uppercase tracking-wide whitespace-nowrap">{header}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {facultySlots.map(slot => (
-                      <tr key={slot.slotId} className="border-b hover:bg-zinc-900">
-                        <td className="px-4 py-4">{slot.slotId}</td>
-                        <td className="px-4 py-4">{slot.name}</td>
-                        <td className="px-4 py-4">{slot.carNumber}</td>
-                        <td className="px-4 py-4">{slot.phoneNumber}</td>
-                        <td className="px-4 py-4">
-                          <button onClick={() => setSelectedUser(slot)} className="text-blue-400 hover:underline">View Details</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'Student' && (
-            <div>
-              <h2 className="text-xl sm:text-2xl mb-4">Student Parking Slots</h2>
-              <div className="bg-zinc-800 p-4 rounded-lg shadow-lg overflow-x-auto">
-                <table className="min-w-full table-auto text-left">
-                  <thead>
-                    <tr className="border-b text-sm sm:text-lg">
-                      {['Slot ID', 'Name', 'Car Number', 'Phone Number', 'Actions'].map(header => (
-                        <th key={header} className="px-4 py-3 text-gray-400 uppercase tracking-wide whitespace-nowrap">{header}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {studentSlots.map(slot => (
-                      <tr key={slot.slotId} className="border-b hover:bg-zinc-900">
-                        <td className="px-4 py-4">{slot.slotId}</td>
-                        <td className="px-4 py-4">{slot.name}</td>
-                        <td className="px-4 py-4">{slot.carNumber}</td>
-                        <td className="px-4 py-4">{slot.phoneNumber}</td>
-                        <td className="px-4 py-4">
-                          <button onClick={() => setSelectedUser(slot)} className="text-blue-400 hover:underline">View Details</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'Unauthorized' && (
-            <div>
-              <h2 className="text-xl sm:text-2xl mb-4">Unauthorized Parking</h2>
-              <div className="bg-zinc-800 p-4 rounded-lg shadow-lg overflow-x-auto">
-                {unauthorizedParking.length > 0 ? (
-                  <table className="min-w-full table-auto text-left">
-                    <thead>
-                      <tr className="border-b text-sm sm:text-lg">
-                        {['Slot ID', 'Car Number', 'Reported At', 'Actions'].map(header => (
-                          <th key={header} className="px-4 py-3 text-gray-400 uppercase tracking-wide whitespace-nowrap">{header}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {unauthorizedParking.map(entry => (
-                        <tr key={entry.slotId} className="border-b hover:bg-zinc-900">
-                          <td className="px-4 py-4">{entry.slotId}</td>
-                          <td className="px-4 py-4">{entry.carNumber}</td>
-                          <td className="px-4 py-4">{entry.time}</td>
-                          <td className="px-4 py-4">
-                            <button className="text-red-400">Report</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-gray-400">No unauthorized parking detected</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Modal */}
-      {selectedUser && (
-        <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm bg-black/30 z-50">
-          <div className="bg-zinc-900 p-6 rounded-lg w-[90%] sm:w-[80%] md:w-[50%] shadow-lg relative">
             <button
-              onClick={() => setSelectedUser(null)}
-              className="absolute top-2 right-4 text-red-400 hover:text-white text-5xl">
-              ×
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
+                activeTab === "student" ? "bg-zinc-950 text-white" : "text-gray-400 hover:text-white"
+              }`}
+              onClick={() => setActiveTab("student")}
+            >
+              Student
             </button>
-            <Car className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-            <h2 className="text-xl sm:text-3xl font-bold mb-4 text-blue-500">User Details</h2>
-            <p className="text-xl"><strong>Name:</strong> {selectedUser.name}</p>
-            <p className="text-xl"><strong>Car Number:</strong> {selectedUser.carNumber}</p>
-            <p className="text-xl"><strong>Phone Number:</strong> {selectedUser.phoneNumber}</p>
-            <p className="text-xl"><strong>Slot ID:</strong> {selectedUser.slotId}</p>
-            <p className="text-xl"><strong>User Type:</strong> {selectedUser.userType}</p>
+            <button
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
+                activeTab === "unauthorized" ? "bg-zinc-950 text-white" : "text-gray-400 hover:text-white"
+              }`}
+              onClick={() => setActiveTab("unauthorized")}
+            >
+              Unauthorized
+            </button>
+          </div>
+
+          {activeTab !== "unauthorized" ? (
+            <div className="mt-6">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg">
+                <div className="p-6">
+                  <h2 className="text-xl font-semibold text-white">
+                    {activeTab === "faculty" ? "Faculty" : "Student"} Parking Lot
+                  </h2>
+                </div>
+                <div className="p-4 pt-0 flex justify-center">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-5 h-200 w-200 ">
+                    {currentSlots.map((slot) => (
+                      <div
+                        key={slot.id}
+                        onClick={() => handleSlotClick(slot)}
+                        className={`
+                          flex items-center justify-center aspect-square rounded-md border cursor-pointer
+                          ${
+                            slot.status === "allocated"
+                              ? "bg-red-900/30 border-red-600 hover:bg-red-900/50"
+                              : "bg-green-900/30 border-green-600 hover:bg-green-900/50"
+                          }
+                        `}
+                      >
+                        <div className="text-center">
+                          <span className="font-bold text-lg text-white">{slot.id}</span>
+                          {slot.status === "allocated" && (
+                            <div className="text-[10px] text-red-400 mt-1">Occupied</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg">
+                <div className="p-6">
+                  <h2 className="text-xl font-semibold text-white">Unauthorized Vehicles</h2>
+                </div>
+                <div className="p-6 pt-0">
+                  {unauthorizedVehicles.length > 0 ? (
+                    <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                      <div className="w-full">
+                        <div className="border-b border-zinc-800 bg-zinc-900">
+                          <div className="grid grid-cols-12 h-12 items-center px-6">
+                            <div className="col-span-2 font-medium text-white">ID</div>
+                            <div className="col-span-3 font-medium text-white">Car Number</div>
+                            <div className="col-span-3 font-medium text-white">Location</div>
+                            <div className="col-span-2 font-medium text-white">Reported At</div>
+                            <div className="col-span-2 font-medium text-white">Actions</div>
+                          </div>
+                        </div>
+                        <div>
+                          {unauthorizedVehicles.map((vehicle) => (
+                            <div key={vehicle._id} className="border-b border-zinc-800 hover:bg-zinc-900">
+                              <div className="grid grid-cols-12 h-14 items-center px-6">
+                                <div className="col-span-2 text-white">{vehicle._id.substring(0, 6)}</div>
+                                <div className="col-span-3 text-white">{vehicle.carNumber}</div>
+                                <div className="col-span-3 text-white">{vehicle.location}</div>
+                                <div className="col-span-2 text-white">
+                                  {new Date(vehicle.reportedAt).toLocaleTimeString()}
+                                </div>
+                                <div className="col-span-2 flex gap-2">
+                                  <button
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-zinc-800 bg-zinc-950 hover:bg-zinc-800 h-9 px-3 py-1 text-white"
+                                    onClick={() => handleUnauthorizedDetails(vehicle)}
+                                  >
+                                    <Info className="h-4 w-4 mr-1" />
+                                    Details
+                                  </button>
+                                  <button
+                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-red-900 text-red-50 hover:bg-red-900/90 h-9 px-3 py-1"
+                                    onClick={() => handleTakeAction(vehicle)}
+                                  >
+                                    Take Action
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-gray-400">No unauthorized parking detected</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {selectedSlot && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center ${isDetailsDialogOpen ? "" : "hidden"}`}>
+          <div className="fixed inset-0 bg-black/50" onClick={() => setIsDetailsDialogOpen(false)}></div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-2xl w-full relative z-10 overflow-hidden mx-4">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-white">
+                Vehicle Details - Slot {selectedSlot.id}
+              </h2>
+            </div>
+            <div className="px-6 pb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <img
+                    src={selectedSlot.carDetails.imageUrl}
+                    alt="Car"
+                    className="rounded-md object-cover w-full h-auto"
+                  />
+                </div>
+                <div className="space-y-4 text-white">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-400">Car Number</h3>
+                    <p className="text-lg font-semibold">{selectedSlot.carDetails.carNumber}</p>
+                  </div >
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-400">Slot Number</h3>
+                    <p className="text-lg font-semibold">{selectedSlot.carDetails.slot}</p>
+                  </div>
+                  <div>
+  <h3 className="text-sm font-medium text-gray-400">Booked At</h3>
+  <p>{(selectedSlot.carDetails.bookedAt)}</p>
+</div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-400">Contact</h3>
+                    <p>{selectedSlot.carDetails.contactNumber}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-zinc-800 px-6 py-4 flex justify-end">
+              <button
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2"
+                onClick={() => setIsDetailsDialogOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedUnauthorized && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center ${isUnauthorizedDetailsOpen ? "" : "hidden"}`}>
+          <div className="fixed inset-0 bg-black/50" onClick={() => setIsUnauthorizedDetailsOpen(false)}></div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-md relative z-10 overflow-hidden mx-4">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-white">
+                Unauthorized Vehicle - {selectedUnauthorized._id.substring(0, 6)}
+              </h2>
+            </div>
+            <div className="px-6 pb-6 space-y-4">
+              <img
+                src={selectedUnauthorized.imageUrl || '/placeholder.svg'}
+                alt="Unauthorized Car"
+                className="rounded-md object-cover w-full h-auto"
+              />
+              <div className="grid grid-cols-2 gap-4 text-white">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-400">Car Number</h3>
+                  <p className="text-lg font-semibold">{selectedUnauthorized.carNumber}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-400">Location</h3>
+                  <p>{selectedUnauthorized.location}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-400">Reported At</h3>
+                  <p>{new Date(selectedUnauthorized.reportedAt).toLocaleString()}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-400">Status</h3>
+                  <p className="capitalize">{selectedUnauthorized.status}</p>
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-zinc-800 px-6 py-4 flex justify-end">
+              <button
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2"
+                onClick={() => setIsUnauthorizedDetailsOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedUnauthorized && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center ${isActionDialogOpen ? "" : "hidden"}`}>
+          <div className="fixed inset-0 bg-black/50" onClick={() => setIsActionDialogOpen(false)}></div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-md relative z-10 overflow-hidden mx-4">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-white">
+                Take Action - {selectedUnauthorized.carNumber}
+              </h2>
+              <p className="text-gray-400 mt-2">
+                Select where this vehicle should be assigned
+              </p>
+            </div>
+            <div className="px-6 pb-6 grid grid-cols-2 gap-4">
+              <button
+                className="h-24 flex flex-col items-center justify-center bg-blue-900/30 hover:bg-blue-900/50 border border-blue-600 rounded-md text-white"
+                onClick={() => handleActionSelect("faculty")}
+              >
+                <Car className="h-8 w-8 mb-2" />
+                <span>Faculty</span>
+              </button>
+              <button
+                className="h-24 flex flex-col items-center justify-center bg-green-900/30 hover:bg-green-900/50 border border-green-600 rounded-md text-white"
+                onClick={() => handleActionSelect("student")}
+              >
+                <Car className="h-8 w-8 mb-2" />
+                <span>Student</span>
+              </button>
+            </div>
+            <div className="border-t border-zinc-800 px-6 py-4 flex justify-end">
+              <button
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-zinc-800 bg-zinc-950 hover:bg-zinc-800 h-10 px-4 py-2 text-white"
+                onClick={() => setIsActionDialogOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedUnauthorized && selectedAction && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center ${isConfirmationOpen ? "" : "hidden"}`}>
+          <div className="fixed inset-0 bg-black/50" onClick={() => setIsConfirmationOpen(false)}></div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-md relative z-10 overflow-hidden mx-4">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-white">Confirm Action</h2>
+            </div>
+            <div className="px-6 pb-6 text-white">
+              <p>
+                Are you sure you want to move vehicle{" "}
+                <span className="font-bold">{selectedUnauthorized.carNumber}</span> to the{" "}
+                <span className="font-bold capitalize">{selectedAction}</span> parking area?
+              </p>
+            </div>
+            <div className="border-t border-zinc-800 px-6 py-4 flex justify-end gap-2">
+              <button
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-zinc-800 bg-zinc-950 hover:bg-zinc-800 h-10 px-4 py-2 text-white"
+                onClick={() => setIsConfirmationOpen(false)}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </button>
+              <button
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 h-10 px-4 py-2"
+                onClick={handleConfirmAction}
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-export default AdminDashboard;

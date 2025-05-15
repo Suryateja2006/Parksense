@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-// Generate initial parking slots
 const generateInitialSlots = () => {
   const slots = [];
   const rows = ["E", "F", "G", "H"];
@@ -25,27 +24,23 @@ export default function StudentDashboard() {
   const [userBookedSlot, setUserBookedSlot] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // States to store real phone and car numbers
   const [userData, setUserData] = useState({
     carNumber: "",
     phoneNumber: "",
   });
   const navigate = useNavigate();
-
-  // Fetch user data from the API
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const phone = localStorage.getItem("phone");
-        const token = localStorage.getItem("token");
+        const phone = sessionStorage.getItem("phone");
+        const token = sessionStorage.getItem("token");
   
         if (!phone || !token) {
           navigate("/login");
           return;
         }
   
-        // Safely parse user from localStorage
-        const userRaw = localStorage.getItem("user");
+        const userRaw = sessionStorage.getItem("user");
         const storedUser = userRaw && userRaw !== "undefined" ? JSON.parse(userRaw) : null;
   
         setUserData({
@@ -55,10 +50,9 @@ export default function StudentDashboard() {
       } catch (error) {
         console.error("Error fetching user data:", error);
   
-        // Fallback safe parsing again, if somehow needed
         let fallbackUser = null;
         try {
-          const fallbackRaw = localStorage.getItem("user");
+          const fallbackRaw = sessionStorage.getItem("user");
           fallbackUser = fallbackRaw && fallbackRaw !== "undefined" ? JSON.parse(fallbackRaw) : null;
         } catch (err) {
           fallbackUser = null;
@@ -66,7 +60,7 @@ export default function StudentDashboard() {
   
         setUserData({
           carNumber: fallbackUser?.carNumber || "Not available",
-          phoneNumber: localStorage.getItem("phone") || "Not available",
+          phoneNumber: sessionStorage.getItem("phone") || "Not available",
         });
       }
     };
@@ -81,38 +75,32 @@ export default function StudentDashboard() {
   }, [navigate]);
   
   
-  
   const initializeParkingLot = async () => {
-    const initialSlots = generateInitialSlots(); // Ensure this returns the correct initial slots
+    const initialSlots = generateInitialSlots(); 
     
     try {
-      // Get the current time in UTC
       const utcDate = new Date();
       
-      // Convert it to IST (UTC + 5:30)
       const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
       
-      // Format the IST time as "YYYY-MM-DD HH:mm:ss"
       const formattedISTTime = istDate.toISOString().slice(0, 19).replace("T", " ");
       
-      // Ensure localStorage values exist and are valid
-      const userPhoneNumber = localStorage.getItem("userPhoneNumber");
-      const user = JSON.parse(localStorage.getItem("user"));
+      const userPhoneNumber = sessionStorage.getItem("phone");
+      const user = JSON.parse(sessionStorage.getItem("user"));
   
       if (!userPhoneNumber || !user?.carNumber) {
         console.error("User data missing from localStorage");
         return;
       }
   
-      // Send the formatted IST time as 'bookedAt' in your POST request
-      const response = await fetch("http://localhost:5000/api/auto-book-student", {
+      const response = await fetch("https://parksense-backend-production.up.railway.app/api/auto-book-student", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phoneNumber: userPhoneNumber,
           carNumber: user.carNumber,
           userType: "student",
-          bookedAt: formattedISTTime, // Send the formatted IST time
+          bookedAt: formattedISTTime, 
         }),
       });
   
@@ -131,11 +119,11 @@ export default function StudentDashboard() {
         console.log("Slot booked:", data.slot);
       } else {
         console.error("Booking error:", data.message);
-        setSlots(initialSlots); // Reset to initial slots on failure
+        setSlots(initialSlots); 
       }
     } catch (error) {
       console.error("Error contacting backend:", error);
-      setSlots(initialSlots); // Reset to initial slots in case of error
+      setSlots(initialSlots); 
     } finally {
       setIsLoading(false);
     }
@@ -152,12 +140,12 @@ export default function StudentDashboard() {
   const handleUnbookSlot = async () => {
     if (selectedSlot && userBookedSlot && userBookedSlot.id === selectedSlot.id) {
       try {
-        const response = await fetch('http://localhost:5000/api/release-slot', {
+        const response = await fetch('https://parksense-backend-production.up.railway.app/api/release-slot', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ slotNumber: selectedSlot.id }), // ✅ FIXED HERE
+          body: JSON.stringify({ slotNumber: selectedSlot.id }),
         });
   
         const data = await response.json();
@@ -280,7 +268,6 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Unbooking dialog */}
       {isDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-md w-full">

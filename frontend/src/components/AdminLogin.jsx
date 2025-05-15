@@ -14,12 +14,12 @@ function AdminLogin() {
     const predefinedPassword = "12345";
 
     if (adminUsername === predefinedUsername && adminPassword === predefinedPassword) {
-      console.log("✅ Admin login successful");
+      console.log("Admin login successful");
 
-      localStorage.setItem("isAdminLoggedIn", "true"); // ✅ added this line
+      localStorage.setItem("isAdminLoggedIn", "true");
       navigate("/admin-dashboard");
     } else {
-      console.log("❌ Invalid credentials");
+      console.log("Invalid credentials");
       setError("Invalid admin username or password");
     }
   };

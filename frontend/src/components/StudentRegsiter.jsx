@@ -28,7 +28,7 @@ function StudentRegister() {
     const data = { phone: phoneNumber, password, carNumber };
 
     try {
-      const response = await fetch("http://localhost:5000/api/studentregister", {
+      const response = await fetch("https://parksense-backend-production.up.railway.app/api/studentregister", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -42,7 +42,7 @@ function StudentRegister() {
         localStorage.setItem("token", result.token);
         localStorage.setItem("user", JSON.stringify(result.user));
         localStorage.setItem("isUserLoggedIn", "true");
-        navigate("/studentlogin"); // Redirect to student login after successful registration
+        navigate("/studentlogin"); 
       } else {
         setError(result.message || "An error occurred during registration.");
       }

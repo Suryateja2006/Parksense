@@ -11,28 +11,28 @@ function StudentLogin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
+  
     const data = { phone: phoneNumber, password };
-
+  
     try {
-      const response = await fetch("http://localhost:5000/api/studentlogin", {
+      const response = await fetch("https://parksense-backend-production.up.railway.app/api/studentlogin", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
       });
-
+  
       const result = await response.json();
-
+  
       if (response.status === 200) {
-        // Store the JWT token and user info in localStorage
-        localStorage.setItem("token", result.token);
-        localStorage.setItem("user", JSON.stringify(result.user));
-        localStorage.setItem("isUserLoggedIn", "true"); // ✅ added this line
-        localStorage.setItem("phone", phoneNumber);
-
-        navigate("/student-dashboard");  // Redirect to the student's dashboard
+        sessionStorage.setItem("token", result.token);
+        sessionStorage.setItem("user", JSON.stringify(result.user));
+        sessionStorage.setItem("isUserLoggedIn", "true");
+        sessionStorage.setItem("phone", phoneNumber);
+        sessionStorage.setItem("role","student");
+  
+        navigate("/student-dashboard");  
       } else {
         setError(result.message || "An error occurred during login.");
       }
@@ -41,7 +41,7 @@ function StudentLogin() {
       setError("An error occurred during login.");
     }
   };
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="w-full max-w-md rounded-lg border border-gray-700 bg-gray-900 p-8 shadow-md">

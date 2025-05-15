@@ -95,7 +95,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Add new section above the footer with a blue button */}
       <section className="w-full py-12 md:py-24 lg:py-32">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex flex-col items-center justify-center space-y-4 text-center text-white">
@@ -106,7 +105,7 @@ const Home = () => {
               Students can easily login to book their parking slots. Click below to get started!
             </p>
             <div className="flex flex-col gap-2 min-[400px]:flex-row">
-            <Link to="/studentregister">
+            <Link to="/student-register">
                   <button className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-md text-lg">
                     Register
                   </button>

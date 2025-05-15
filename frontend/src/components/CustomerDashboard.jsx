@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-// Generate initial parking slots
 const generateInitialSlots = () => {
   const slots = [];
   const rows = ["A", "B", "C", "D"];
@@ -32,12 +31,11 @@ export default function Dashboard() {
   });
   const navigate = useNavigate();
 
-  // Fetch user data from the API
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const userPhone = localStorage.getItem("userPhoneNumber");
-        const token = localStorage.getItem("token");
+        const userPhone = sessionStorage.getItem("userPhoneNumber");
+        const token = sessionStorage.getItem("token");
 
         if (!userPhone || !token) {
           navigate("/login");
@@ -45,16 +43,16 @@ export default function Dashboard() {
         }
 
         setUserData({
-          carNumber: JSON.parse(localStorage.getItem("user"))?.carNumber || "Not available",
+          carNumber: JSON.parse(sessionStorage.getItem("user"))?.carNumber || "Not available",
           phoneNumber: userPhone,
         });
 
       } catch (error) {
         console.error("Error fetching user data:", error);
-        const storedUser = JSON.parse(localStorage.getItem("user"));
+        const storedUser = JSON.parse(sessionStorage.getItem("user"));
         setUserData({
           carNumber: storedUser?.carNumber || "Not available",
-          phoneNumber: localStorage.getItem("userPhoneNumber") || "Not available",
+          phoneNumber: sessionStorage.getItem("userPhoneNumber") || "Not available",
         });
       }
     };
@@ -66,27 +64,20 @@ export default function Dashboard() {
   }, [navigate]);
 
   const initializeParkingLot = async () => {
-    const initialSlots = generateInitialSlots(); // Just all slots marked "available"
+    const initialSlots = generateInitialSlots(); 
   
     try {
-// Get the current time in UTC
 const utcDate = new Date();
-
-// Convert it to IST (UTC + 5:30)
 const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
-
-// Format the IST time as "YYYY-MM-DD HH:mm:ss"
 const formattedISTTime = istDate.toISOString().slice(0, 19).replace("T", " ");
-
-// Send the formatted IST time as 'bookedAt' in your POST request
-const response = await fetch("http://localhost:5000/api/auto-book-faculty", {
+const response = await fetch("https://parksense-backend-production.up.railway.app/api/auto-book-faculty", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    phoneNumber: localStorage.getItem("userPhoneNumber"),
+    phoneNumber: sessionStorage.getItem("userPhoneNumber"),
     carNumber: JSON.parse(localStorage.getItem("user"))?.carNumber,
     userType: "faculty",
-    bookedAt: formattedISTTime, // Send the formatted IST time
+    bookedAt: formattedISTTime, 
   }),
 });
 
@@ -127,14 +118,13 @@ const response = await fetch("http://localhost:5000/api/auto-book-faculty", {
     if (selectedSlot && userBookedSlot && userBookedSlot.id === selectedSlot.id) {
       try {
   
-        const response = await fetch('http://localhost:5000/api/release-slot', {
+        const response = await fetch('https://parksense-backend-production.up.railway.app/api/release-slot', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             slotNumber: selectedSlot.id,
-            // userType: userType, // Send the userType in the request
           }),
         });
   
@@ -259,7 +249,6 @@ const response = await fetch("http://localhost:5000/api/auto-book-faculty", {
         </div>
       </div>
 
-      {/* Unbooking dialog */}
       {isDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-md w-full">
@@ -303,3 +292,22 @@ const ParkingSlotCard = ({ slot, isUserSlot }) => (
     <div className="text-white text-lg text-center font-semibold">{slot.id}</div>
   </div>
 );
+
+
+// const ParkingSlotCard = ({ slot, isUserSlot }) => (
+//   <div className={`
+//     aspect-square w-full max-w-[80px]  /* Perfect square */
+//     flex items-center justify-center  /* Centered content */
+//     p-1 rounded-md                  /* Reduced padding */
+//     ${slot.status === "available" 
+//       ? "bg-gray-700" 
+//       : "bg-gray-600"}
+//     ${isUserSlot 
+//       ? 'border-2 border-blue-500'  /* Thinner border */
+//       : ''}
+//   `}>
+//     <div className="text-white text-base font-semibold">  {/* Slightly smaller text */}
+//       {slot.id}
+//     </div>
+//   </div>
+// );

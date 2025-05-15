@@ -10,11 +10,11 @@ function UserLogin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // Reset any previous errors
+    setError("");
   
     const data = { phone: phoneNumber, password };
   
-    console.log("Data being sent to backend: ", data); // Log the data to make sure phone is being passed
+    console.log("Data being sent to backend: ", data); 
   
     try {
       const response = await fetch("http://localhost:5000/api/facultylogin", {
@@ -28,11 +28,11 @@ function UserLogin() {
       const result = await response.json();
   
       if (response.status === 200) {
-        // Save user data and token to localStorage
-        localStorage.setItem("token", result.token);
-        localStorage.setItem("user", JSON.stringify(result.user));
-        localStorage.setItem("isUserLoggedIn", "true");
-        localStorage.setItem("userPhoneNumber", result.user.phone); // Corrected here
+        sessionStorage.setItem("token", result.token);
+        sessionStorage.setItem("user", JSON.stringify(result.user));
+        sessionStorage.setItem("isUserLoggedIn", "true");
+        sessionStorage.setItem("userPhoneNumber", result.user.phone);
+        sessionStorage.setItem("role","faculty");
         navigate("/customerdashboard");
       } else {
         setError(result.msg || "An error occurred during login.");
@@ -104,7 +104,7 @@ function UserLogin() {
         </form>
 
         <div className="mt-6 text-center text-sm text-gray-400">
-          Don&apos;t have an account?{" "}
+          Don't have an account?{" "}
           <Link to="/register" className="text-blue-500 hover:underline">
             Register
           </Link>
@@ -114,6 +114,8 @@ function UserLogin() {
           <Link to="/admin-login" className="text-blue-500 hover:underline">
             Login as Admin
           </Link>
+          <br />
+          <Link to="/studentlogin" className="text-blue-500 hover:underline">Are you a student?</Link>
         </div>
       </div>
     </div>
