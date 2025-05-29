@@ -93,7 +93,7 @@ export default function StudentDashboard() {
         return;
       }
   
-      const response = await fetch("https://parksense-backend-production.up.railway.app/api/auto-book-student", {
+      const response = await fetch("http://localhost:5000/api/auto-book-student", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,6 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Car } from "lucide-react";
+
+// Utility function to check if token is expired
+function isTokenExpired(token) {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return Date.now() >= payload.exp * 1000; // Convert exp to ms
+  } catch (e) {
+    return true; // If token is invalid
+  }
+}
 
 function UserLogin() {
   const navigate = useNavigate();
@@ -8,14 +19,25 @@ function UserLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  // Check token expiry on mount
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    if (token && !isTokenExpired(token)) {
+      // Already logged in and token valid
+      navigate("/customerdashboard");
+    } else {
+      // Clear expired session
+      sessionStorage.clear();
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-  
+
     const data = { phone: phoneNumber, password };
-  
-    console.log("Data being sent to backend: ", data); 
-  
+    console.log("Data being sent to backend: ", data);
+
     try {
       const response = await fetch("http://localhost:5000/api/facultylogin", {
         method: "POST",
@@ -24,15 +46,16 @@ function UserLogin() {
         },
         body: JSON.stringify(data),
       });
-  
+
       const result = await response.json();
-  
+
       if (response.status === 200) {
         sessionStorage.setItem("token", result.token);
         sessionStorage.setItem("user", JSON.stringify(result.user));
         sessionStorage.setItem("isUserLoggedIn", "true");
         sessionStorage.setItem("userPhoneNumber", result.user.phone);
-        sessionStorage.setItem("role","faculty");
+        sessionStorage.setItem("role", "faculty");
+
         navigate("/customerdashboard");
       } else {
         setError(result.msg || "An error occurred during login.");
@@ -42,7 +65,6 @@ function UserLogin() {
       setError("An error occurred during login.");
     }
   };
-  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">

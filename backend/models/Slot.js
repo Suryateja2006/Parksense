@@ -22,6 +22,10 @@ const SlotSchema = new mongoose.Schema({
     type: Date,
     default: Date.now 
   },
+  updatedByAdmin:{
+    type: Boolean,
+    default: false
+  }
 });
 
 module.exports = mongoose.model('Slot', SlotSchema);

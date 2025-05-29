@@ -70,7 +70,7 @@ export default function Dashboard() {
 const utcDate = new Date();
 const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
 const formattedISTTime = istDate.toISOString().slice(0, 19).replace("T", " ");
-const response = await fetch("https://parksense-backend-production.up.railway.app/api/auto-book-faculty", {
+const response = await fetch("http://localhost:5000/api/auto-book-faculty", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -118,7 +118,7 @@ const response = await fetch("https://parksense-backend-production.up.railway.ap
     if (selectedSlot && userBookedSlot && userBookedSlot.id === selectedSlot.id) {
       try {
   
-        const response = await fetch('https://parksense-backend-production.up.railway.app/api/release-slot', {
+        const response = await fetch('http://localhost:5000/api/release-slot', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -172,8 +172,8 @@ const response = await fetch("https://parksense-backend-production.up.railway.ap
 
   return (
     <div className="container py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">User Dashboard</h1>
+      <div className="mb-8 pt-16">
+        <h1 className="text-3xl font-bold mb-2 text-white">User Dashboard</h1>
         <p className="text-gray-400">Your parking slot has been automatically allocated</p>
       </div>
 

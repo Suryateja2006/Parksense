@@ -13,6 +13,7 @@ const bookingRoutes = require('./routes/booking');
 const slotsRoutes = require('./routes/slot');
 const fetchingslotRoutes = require('./routes/slots');
 const getBookedSlots = require("./routes/getBookedSlots");
+const unauthorizedRoutes = require('./routes/unauthorized');
 
 const app = express();
 
@@ -21,7 +22,7 @@ const corsOptions = {
     "http://localhost:5173",  
     /https:\/\/.*\.ngrok\.io$/, 
   ],
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST','PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 };
@@ -38,7 +39,7 @@ app.use('/api/booking', bookingRoutes);
 app.use('/api', slotsRoutes);
 app.use('/api/slots', fetchingslotRoutes);
 app.use("/api/getBookedSlots", getBookedSlots);
-
+app.use('/', unauthorizedRoutes);
 
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
